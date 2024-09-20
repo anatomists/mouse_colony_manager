@@ -1,0 +1,28 @@
+Internal Server Error: /api/token/
+"POST /api/token/ HTTP/1.1" 500 128
+Internal Server Error: /api/token/
+"POST /api/token/ HTTP/1.1" 500 128
+Internal Server Error: /api/cages/
+"GET /api/cages/ HTTP/1.1" 500 105
+Internal Server Error: /api/cages/
+"GET /api/cages/ HTTP/1.1" 500 105
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/racks/
+"GET /api/racks/ HTTP/1.1" 500 106
