@@ -30,7 +30,7 @@ class Rack(models.Model):
 
 
 class Cage(models.Model):
-    given_number = models.IntegerField()
+    given_number = models.CharField(max_length=10, null=True, blank=True)
     cage_number = models.CharField(max_length=50, unique=True)
     rack = models.ForeignKey(Rack, on_delete=models.CASCADE, related_name='cages')
     room = models.CharField(max_length=50)
@@ -59,7 +59,7 @@ class Mouse(models.Model):
     genotype4 = models.CharField(max_length=50, blank=True)
     pregnant = models.BooleanField(default=False)
     due_date = models.DateField(null=True, blank=True)
-    cage = models.ForeignKey(Cage, on_delete=models.SET_NULL, null=True)
+    cage = models.ForeignKey(Cage, on_delete=models.SET_NULL, null=True, related_name='mice')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_mice')
     created_at = models.DateTimeField(default=timezone.now)
     is_sacrificed = models.BooleanField(default=False)

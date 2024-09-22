@@ -3,7 +3,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from colony.models import Strain, Cage, Mouse, Rack
@@ -65,6 +65,7 @@ class CustomTokenRefreshView(TokenRefreshView):
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -74,6 +75,8 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            regular_user_group = Group.objects.get(name='Regular User')
+            user.groups.add(regular_user_group)
             refresh = RefreshToken.for_user(user)
             return Response({
                 "user": UserSerializer(user, context=self.get_serializer_context()).data,
@@ -83,31 +86,35 @@ class UserViewSet(viewsets.ModelViewSet):
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
-    def login(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        user = authenticate(username=username, password=password)
-        if user:
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "user": UserSerializer(user, context=self.get_serializer_context()).data,
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "message": "User Logged In Successfully"
-            })
-        return Response({"message": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
-    def logout(self, request):
-        # In token-based auth, the client is responsible for removing the token
-        return Response({"message": "User Logged Out Successfully"})
+    @action(detail=True, methods=['post'])
+    def set_user_type(self, request, pk=None):
+        user = self.get_object()
+        user_type = request.data.get('user_type')
+        if user_type not in ['admin', 'manager', 'user']:
+            return Response({"error": "Invalid user type"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.groups.clear()
+        if user_type == 'admin':
+            user.is_superuser = True
+        elif user_type == 'manager':
+            manager_group = Group.objects.get(name='Mice Colony Manager')
+            user.groups.add(manager_group)
+        else:
+            regular_user_group = Group.objects.get(name='Regular User')
+            user.groups.add(regular_user_group)
+
+        user.save()
+        return Response({"message": f"User type set to {user_type}"})
 
     def get_permissions(self):
         if self.action in ['register', 'login', 'logout']:
             return [AllowAny()]
         return [IsAuthenticated()]
-
 
 class StrainViewSet(viewsets.ModelViewSet):
     queryset = Strain.objects.all()
@@ -119,14 +126,19 @@ class StrainViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Strain.objects.all()
-        if self.request.user.is_authenticated:
-            queryset = queryset.filter(owner=self.request.user)
+        user = self.request.user
+        if user.is_superuser or user.groups.filter(name='Mice Colony Manager').exists():
+            queryset = Strain.objects.all()
+        else:
+            queryset = Strain.objects.filter(owner_id=user)
+        # if self.request.user.is_authenticated:
+        #     queryset = queryset.filter(owner=self.request.user)
         return queryset
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
-        print('Strains being sent from API:', serializer.data)
+        #print('Strains being sent from API:', serializer.data)
         return Response(serializer.data)
 
 
@@ -152,63 +164,63 @@ class CageViewSet(viewsets.ModelViewSet):
     queryset = Cage.objects.all()
     serializer_class = CageSerializer
 
-    @action(detail=True, methods=['post'])
-    def move(self, request, pk=None):
-        cage = self.get_object()
-        new_rack_id = request.data.get('new_rack_id')
-        new_position = request.data.get('new_position')
+    @action(detail=False, methods=['post'])
+    def move_cage(self, request):
+        source_rack_id = request.data.get('source_rack_id')
+        source_position = request.data.get('source_position')
+        target_rack_id = request.data.get('target_rack_id')
+        target_position = request.data.get('target_position')
 
-        if new_rack_id and new_position:
-            try:
-                new_rack = Rack.objects.get(id=new_rack_id)
-                cage.rack = new_rack
-                cage.position = new_position
-                cage.save()
-                return Response({'status': 'cage moved'})
-            except Rack.DoesNotExist:
-                return Response({'error': 'Invalid rack ID'}, status=400)
-        else:
-            return Response({'error': 'Missing new_rack_id or new_position'}, status=400)
+        try:
+            cage = Cage.objects.get(rack_id=source_rack_id, position=source_position)
+            cage.rack_id = target_rack_id
+            cage.position = target_position
+            cage.save()
+            return Response({'message': 'Cage moved successfully'}, status=status.HTTP_200_OK)
+        except Cage.DoesNotExist:
+            return Response({'error': 'Cage not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class MouseViewSet(viewsets.ModelViewSet):
     queryset = Mouse.objects.all()
     serializer_class = MouseSerializer
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        serializer = self.get_serializer(queryset, many=True)
-        # print('Mice being sent from API:', serializer.data)  # Add this line
-        return Response(serializer.data)
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        user = self.request.user
+        if user.is_superuser or user.groups.filter(name='Mice Colony Manager').exists():
+            queryset = Mouse.objects.all()
+        else:
+            queryset = Mouse.objects.filter(strain__owner=user)
+
         cage_id = self.request.query_params.get('cage', None)
         if cage_id is not None:
             queryset = queryset.filter(cage_id=cage_id)
+
         return queryset
 
-    @action(detail=False, methods=['post'])
-    def move_mice(self, request):
-        mouse_ids = request.data.get('mouse_ids', [])
-        new_cage_id = request.data.get('new_cage_id')
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
-        if not mouse_ids or not new_cage_id:
-            return Response({"error": "Mouse IDs and new cage ID are required"}, status=status.HTTP_400_BAD_REQUEST)
+    @action(detail=False, methods=['post'])
+    def move_mouse(self, request):
+        mouse_id = request.data.get('mouse_id')
+        cage_id = request.data.get('cage_id')
 
         try:
-            new_cage = Cage.objects.get(id=new_cage_id)
-            mice = Mouse.objects.filter(id__in=mouse_ids)
-
-            for mouse in mice:
-                mouse.cage = new_cage
-                mouse.save()
-
-            return Response({"message": "Mice moved successfully"}, status=status.HTTP_200_OK)
-        except Cage.DoesNotExist:
-            return Response({"error": "New cage not found"}, status=status.HTTP_404_NOT_FOUND)
+            mouse = Mouse.objects.get(id=mouse_id)
+            cage = Cage.objects.get(id=cage_id)
+            mouse.cage = cage
+            mouse.save()
+            return Response({'message': 'Mouse moved successfully'}, status=status.HTTP_200_OK)
+        except (Mouse.DoesNotExist, Cage.DoesNotExist):
+            return Response({'error': 'Mouse or Cage not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'])
     def sacrifice(self, request, pk=None):
@@ -218,11 +230,11 @@ class MouseViewSet(viewsets.ModelViewSet):
         return Response({"message": "Mouse sacrificed successfully"})
 
     @action(detail=True, methods=['post'])
-    def undo_sacrifice(self, request, pk=None):
+    def restore(self, request, pk=None):
         mouse = self.get_object()
         mouse.is_sacrificed = False
         mouse.save()
-        return Response({"message": "Mouse sacrifice undone successfully"})
+        return Response({"message": "Mouse restored successfully"})
 
 
 @api_view(['GET'])

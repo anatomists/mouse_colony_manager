@@ -17,4 +17,6 @@ urlpatterns = [
     path('login/', UserViewSet.as_view({'post': 'login'}), name='login'),
     path('logout/', UserViewSet.as_view({'post': 'logout'}), name='logout'),
     path('user/', get_user, name='get_user'),
+    path('users/<int:pk>/set_user_type/', UserViewSet.as_view({'post': 'set_user_type'}), name='set_user_type'),
+    path('move-cage/', CageViewSet.as_view({'post': 'move_cage'}), name='move-cage'),
 ]

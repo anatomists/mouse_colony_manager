@@ -26,3 +26,19 @@ Internal Server Error: /api/racks/
 "GET /api/racks/ HTTP/1.1" 500 106
 Internal Server Error: /api/racks/
 "GET /api/racks/ HTTP/1.1" 500 106
+Internal Server Error: /api/mice/
+"GET /api/mice/ HTTP/1.1" 500 223
+Internal Server Error: /api/mice/
+"GET /api/mice/ HTTP/1.1" 500 223
+Internal Server Error: /api/mice/
+"GET /api/mice/ HTTP/1.1" 500 223
+Internal Server Error: /api/mice/
+"GET /api/mice/ HTTP/1.1" 500 223
+Internal Server Error: /api/mice/
+"GET /api/mice/ HTTP/1.1" 500 223
+Internal Server Error: /api/strains/
+"GET /api/strains/ HTTP/1.1" 500 349
+Internal Server Error: /api/strains/
+"GET /api/strains/ HTTP/1.1" 500 349
+Internal Server Error: /api/strains/
+"GET /api/strains/ HTTP/1.1" 500 224
